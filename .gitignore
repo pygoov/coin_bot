@@ -5,3 +5,5 @@ __pycache__/
 sessions/
 _example.py
 _config.json
+_enter.py
+_config_dev.json

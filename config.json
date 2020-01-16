@@ -1,7 +1,17 @@
-[
-    {
-        "api_id": "xxxxxx",
-        "api_hash": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        "chat_name": "LTC Click Bot"
-    }
-]
+{
+    "api_id": "xxxxxx",
+    "api_hash": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "chat_names": [
+        "LTC Click Bot",
+        "ZEC Click Bot",
+        "BTC Click Bot",
+        "BCH Click Bot",
+        "DOGE Click Bot"
+    ],
+    "clients": [
+        {
+            "phone": "00000000000",
+            "password": "xxxxxxxxxx"            
+        }
+    ]
+}

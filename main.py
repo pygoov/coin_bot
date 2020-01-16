@@ -26,20 +26,28 @@ with open(args.config_file, 'r', encoding='utf-8') as f:
 # creating bots from config
 bots = [
     CoinBot(
-        cfg['chat_name'],
-        cfg['api_id'],
-        cfg['api_hash']
+        config_data['api_id'],
+        config_data['api_hash'],
+        config_data['chat_names'],
+        cfg['phone'],
+        cfg['password']
     )
-    for cfg in config_data
+    for cfg in config_data['clients']
 ]
+
+
+async def wait_exit():
+    while True:
+        await asyncio.sleep(0.1)
 
 
 async def main():
     # runing all bots
-    await asyncio.gather(*[bot.run() for bot in bots])
+    tasks = [wait_exit()] + [bot.run() for bot in bots]
+    await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":
     # runing main
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_event_loop()    
     loop.run_until_complete(main())
