@@ -31,7 +31,7 @@ class DialogLogic:
             return False
 
         print("Найдено Sorry")
-        await asyncio.sleep(60 * 5)
+        await asyncio.sleep(60 * 3)
         return True
 
     async def is_wait_msg(self, msg):
@@ -124,7 +124,7 @@ class DialogLogic:
                 "token": match.group('token')
             }
 
-            print("Send xdata:", xdata)            
+            print("Send xdata:", xdata)
 
             try:
                 rsp = await session.post(
@@ -189,22 +189,22 @@ class CoinBot:
 
         self.session = f'./sessions/{_hash}.session'
         # http://free-proxy.cz/ru/proxylist/country/all/socks5/ping/all
-        proxy = (socks.SOCKS5, "198.27.75.152", 1080)
+        # proxy = (socks.SOCKS5, "198.27.75.152", 1080)
         # proxy = (socks.SOCKS5, "5.133.197.203", 24382)
+        self.client = None
+
+    def client_init(self, proxy):
+        print(f'Started "{self.phone}" client')
+        kwargs = {
+            "phone": self.phone
+        }
+
         self.client = TelegramClient(
             self.session,
             self.api_id,
             self.api_hash,
             proxy=proxy
-        )
-
-        self.client_start()
-
-    def client_start(self):
-        print(f'Started "{self.phone}" client')
-        kwargs = {
-            "phone": self.phone
-        }
+        )        
 
         if self.password is not None:
             kwargs['password'] = self.password
