@@ -2,9 +2,35 @@ import asyncio
 import argparse
 import os
 import json
+import linecache
+import sys
+import traceback
 
 from coin_bot import CoinBot
-from proxy_manager import ProxyManager
+from proxy import ProxyManager
+from datetime import datetime
+from io import StringIO
+
+
+def traceback_msg(e):
+    exc_type, exc_obj, first_tb = sys.exc_info()
+    tb = StringIO()
+    traceback.print_tb(first_tb, file=tb)
+    sp_tab = '  '
+    msg_ex = '''
+==========Exception===========
+Message:
+>>>
+{e}
+<<<
+Time: {time}
+Traceback:
+{tb}=============================='''.format(
+        e=sp_tab + str(e).replace('\n', '\n' + sp_tab),
+        time=datetime.now(),
+        tb=tb.getvalue()
+    )
+    return msg_ex
 
 
 async def wait_exit():
@@ -41,22 +67,25 @@ async def main():
         for cfg in config_data['clients']
     ]
 
-    proxy_manager = ProxyManager('https://api.telegram.org')
+    proxy_manager = ProxyManager()
 
     while True:
-        tasks = []
+        run_tasks = []
 
+        await proxy_manager.load_proxys()
+
+        print('run init bots')
         for bot in bots:
-            bot.client_init(
-                await proxy_manager.get_next_proxy()
-            )
-            tasks.append(bot.run())
+            proxy = await proxy_manager.get_proxy('https://api.telegram.org')
+            await bot.client_init(proxy)
+            run_tasks.append(bot.run())
 
         try:
             # runing all bots
-            await asyncio.gather(*tasks)
+            print('run all bots')
+            await asyncio.gather(*run_tasks)
         except Exception as e:
-            print('Exception:', e)
+            print(traceback_msg(e))
 
         await asyncio.sleep(60)
 
@@ -65,4 +94,5 @@ if __name__ == "__main__":
     # runing main
     loop = asyncio.get_event_loop()
     loop.create_task(wait_exit())
-    loop.run_until_complete(main())
+    loop.create_task(main())
+    loop.run_forever()

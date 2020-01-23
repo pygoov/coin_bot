@@ -7,6 +7,8 @@ import aiohttp
 
 from telethon import TelegramClient
 from telethon.tl.functions.messages import GetBotCallbackAnswerRequest
+from aiohttp_socks import ProxyType, ProxyConnector, ChainProxyConnector
+
 
 REG_CODE_TOKEN = r'data-code=\"(?P<code>[^\"]+)\".+token=\"(?P<token>[^\"]+)\"'
 
@@ -16,9 +18,10 @@ def get_hash(text):
 
 
 class DialogLogic:
-    def __init__(self, client, dialog):
+    def __init__(self, client, dialog, proxy):
         self.client = client
         self.dialog = dialog
+        self.proxy = proxy
 
     async def send_msg(self, msg):
         await self.client.send_message(self.dialog.name, msg)
@@ -95,8 +98,8 @@ class DialogLogic:
         url = msg.reply_markup.rows[0].buttons[0].url
 
         print("Найдена ссылка:", url)
-
-        async with aiohttp.ClientSession() as session:
+        connector = ProxyConnector.from_url(self.proxy.get_str())
+        async with aiohttp.ClientSession(connector=connector) as session:
             text = ''
             try:
                 resp = await session.get(url)
@@ -182,6 +185,7 @@ class CoinBot:
         self.chat_names = chat_names
         self.phone = phone
         self.password = password
+        self.proxy = None
         _hash = get_hash(f'{self.phone}_{self.password}')
 
         if not os.path.isdir('./sessions'):
@@ -193,23 +197,28 @@ class CoinBot:
         # proxy = (socks.SOCKS5, "5.133.197.203", 24382)
         self.client = None
 
-    def client_init(self, proxy):
-        print(f'Started "{self.phone}" client')
-        kwargs = {
-            "phone": self.phone
-        }
+    async def client_init(self, proxy):
+        print(f'Init "{self.phone}" client')
 
+        if self.client is not None and self.client.is_connected:
+            await self.client.disconnect()
+
+        self.proxy = proxy
         self.client = TelegramClient(
             self.session,
             self.api_id,
             self.api_hash,
-            proxy=proxy
-        )        
+            proxy=self.proxy.get_tuple()
+        )
+
+        kwargs = {
+            "phone": self.phone
+        }
 
         if self.password is not None:
             kwargs['password'] = self.password
 
-        self.client.start(**kwargs)
+        await self.client.start(**kwargs)
         print(f'Start client success')
 
     async def get_dialogs(self):
@@ -217,7 +226,7 @@ class CoinBot:
         for dlg in await self.client.get_dialogs():
             if dlg.title in self.chat_names:
 
-                gl = DialogLogic(self.client, dlg)
+                gl = DialogLogic(self.client, dlg, self.proxy)
                 dialogs.append(gl)
 
         return dialogs
