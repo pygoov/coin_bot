@@ -1,3 +1,4 @@
 telethon
 pysocks
 aiohttp
+aiohttp_socks

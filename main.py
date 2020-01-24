@@ -67,16 +67,14 @@ async def main():
         for cfg in config_data['clients']
     ]
 
-    proxy_manager = ProxyManager()
+    proxy_manager = ProxyManager('https://api.telegram.org')
 
     while True:
         run_tasks = []
 
-        await proxy_manager.load_proxys()
-
         print('run init bots')
         for bot in bots:
-            proxy = await proxy_manager.get_proxy('https://api.telegram.org')
+            proxy = await proxy_manager.get_proxy()
             await bot.client_init(proxy)
             run_tasks.append(bot.run())
 

@@ -8,6 +8,9 @@ import re
 from aiohttp_socks import ProxyType, ProxyConnector, ChainProxyConnector
 
 
+RE_PROXY = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{2,6}'
+
+
 class ProxyObject:
     def __init__(self, ip, port):
         self.ip = ip
@@ -26,7 +29,7 @@ class ProxyObject:
         try:
             connector = ProxyConnector.from_url(self.get_str())
             async with aiohttp.ClientSession(connector=connector) as _sess:
-                response = await _sess.get(url, timeout=2)
+                response = await _sess.get(url, timeout=1)
                 if response.status == 200:
                     return True
         except Exception as e:
@@ -37,9 +40,19 @@ class ProxyObject:
 
 
 class ProxyManager:
-    def __init__(self):
-        self.biffer_proxys = []
-        self.proxys = []
+    def __init__(self,  test_url):
+        self.test_url = test_url
+        self.queue_proxys = asyncio.Queue()
+
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.load_loop())
+
+    async def load_loop(self):
+        while True:
+            if self.queue_proxys.empty():
+                await self.load_proxys()
+
+            await asyncio.sleep(10)
 
     async def load_proxys(self):
         print("run load proxy")
@@ -60,25 +73,32 @@ class ProxyManager:
                 raise Exception(f'Failed request to "{url}" url')
 
             text = await response.text()
-            x = re.findall(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{2,6}', text)
 
-        pxs = [x.split(':') for x in text.split('\n')]
-        self.biffer_proxys = [ProxyObject(x[0], x[1]) for x in pxs if len(x) == 2]
-        print(f'load {len(self.proxys)} proxys')
+        proxys = []
 
-    async def get_proxy(self, test_url):
-        print('getting proxy')
-        count_try = 0
-        while count_try < 10:
-            if len(self.proxys) == 0:
-                await self.load_proxys()
+        for line in re.findall(RE_PROXY, text):
+            sp = line.split(':')
+            if len(sp) != 2:
+                continue
+            proxy = ProxyObject(sp[0], sp[1])
+            proxys.append(proxy)
 
-            proxy = self.proxys.pop()
+        print(f'find {len(proxys)} proxys')
 
-            if await proxy.check_url(test_url):
-                print(f"Proxy {proxy} find success")
-                return proxy
+        while len(proxys) > 0:
+            batch_proxys = proxys[:20]
+            proxys = proxys[20:]            
 
-            await asyncio.sleep(1)
+            checked = await asyncio.gather(*[
+                proxy.check_url(self.test_url)
+                for proxy in batch_proxys
+            ])
 
-        raise Exception("Max count trys getting proxy =(")
+            print(f'checked {len(checked)} proxys')
+
+            for i, proxy in enumerate(batch_proxys):
+                if checked[i]:
+                    self.queue_proxys.put_nowait(proxy)
+
+    async def get_proxy(self):
+        return await self.queue_proxys.get()
